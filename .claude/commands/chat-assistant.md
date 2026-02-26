@@ -417,6 +417,78 @@ IMPORTANT: Copy the COMPLETE App.jsx from the karcher-demo-assistant reference p
 - `openServiceChat` intercepts for store/browse → different views
 - `openCategoryChat` sends prompt directly (no greeting message)
 
+### Mobile UX — MUST include these patterns:
+
+The widget MUST work flawlessly on mobile. Copy these patterns from the reference:
+
+**1. Body scroll lock (App.jsx — useEffect on isOpen):**
+When the panel opens, lock body scroll to prevent background page scrolling on mobile:
+```jsx
+useEffect(() => {
+  if (isOpen) {
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.width = "100%";
+    document.body.style.top = `-${window.scrollY}px`;
+  } else {
+    const scrollY = document.body.style.top;
+    document.body.style.overflow = "";
+    document.body.style.position = "";
+    document.body.style.width = "";
+    document.body.style.top = "";
+    window.scrollTo(0, parseInt(scrollY || "0") * -1);
+  }
+}, [isOpen]);
+```
+
+**2. VisualViewport keyboard handling (App.jsx — useEffect on isOpen):**
+When the mobile keyboard opens, shrink the panel to the visible area so the input stays accessible:
+```jsx
+useEffect(() => {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const panel = document.querySelector(".panel");
+  if (!panel) return;
+  const onResize = () => {
+    if (!isOpen) return;
+    panel.style.height = `${vv.height}px`;
+    panel.style.maxHeight = `${vv.height}px`;
+  };
+  vv.addEventListener("resize", onResize);
+  vv.addEventListener("scroll", onResize);
+  return () => {
+    vv.removeEventListener("resize", onResize);
+    vv.removeEventListener("scroll", onResize);
+    panel.style.height = "";
+    panel.style.maxHeight = "";
+  };
+}, [isOpen]);
+```
+
+**3. CSS touch feedback (App.css):**
+Add `:active` states for touch devices (`:hover` sticks on mobile — bad UX):
+```css
+@media (hover: none) and (pointer: coarse) {
+  .service-card:active,
+  .catalog-card:active,
+  .stores-card:active { transform: scale(0.97); }
+  .send-btn:active:not(:disabled) { transform: scale(0.92); }
+  /* Disable sticky hover */
+  .service-card:hover,
+  .catalog-card:hover { transform: none; box-shadow: none; }
+}
+```
+
+**4. CSS mobile essentials (App.css @media max-width: 640px):**
+- Panel: `width: 100vw; height: 100dvh;` (full screen, `dvh` for iOS)
+- `overscroll-behavior: contain` on panel and all scrollable areas
+- `-webkit-overflow-scrolling: touch` on scrollable areas
+- `font-size: 16px` on textarea (prevents iOS auto-zoom)
+- `min-height: 44px` on ALL interactive elements (WCAG tap target)
+- `env(safe-area-inset-top/bottom)` on header and input area
+- Close button visible in header (collapse button hidden)
+- Trigger button positioned with safe area inset bottom
+
 ---
 
 ## src/App.css — Complete Reference Template
@@ -653,7 +725,12 @@ Before client handoff, verify ALL of these:
 - [ ] Translations complete for both languages
 - [ ] "Powered by Wiil" footer links to https://wiil.io
 - [ ] Embed snippet URL updated to production domain
-- [ ] Tested on mobile (iOS Safari + Android Chrome)
+- [ ] Tested on mobile (iOS Safari + Android Chrome):
+  - [ ] Panel goes full screen, no background scroll bleed
+  - [ ] Keyboard opens → input stays visible (VisualViewport)
+  - [ ] All buttons/cards are ≥44px tap targets
+  - [ ] No sticky hover states on touch
+  - [ ] Safe area insets on notched phones (iPhone 14+)
 - [ ] Tested all views: home, chat, stores, catalog
 - [ ] Tested language switching resets state correctly
 - [ ] Tested error states (disconnect wifi, send while loading)
